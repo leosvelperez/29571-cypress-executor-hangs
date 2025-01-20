@@ -1,0 +1,12 @@
+diff --git a/node_modules/@nx/next/src/executors/server/custom-server.impl.js b/node_modules/@nx/next/src/executors/server/custom-server.impl.js
+index f22df2b..99df6f0 100644
+--- a/node_modules/@nx/next/src/executors/server/custom-server.impl.js
++++ b/node_modules/@nx/next/src/executors/server/custom-server.impl.js
+@@ -31,6 +31,7 @@ async function* runCustomServer(root, options, context) {
+         yield {
+             success: true,
+             baseUrl,
++            exit: result.exit,
+         };
+     }
+     return { success: true };

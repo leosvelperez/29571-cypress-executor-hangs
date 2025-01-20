@@ -1,0 +1,28 @@
+diff --git a/node_modules/@nx/cypress/src/executors/cypress/cypress.impl.js b/node_modules/@nx/cypress/src/executors/cypress/cypress.impl.js
+index 0b2c491..77bdc80 100644
+--- a/node_modules/@nx/cypress/src/executors/cypress/cypress.impl.js
++++ b/node_modules/@nx/cypress/src/executors/cypress/cypress.impl.js
+@@ -19,8 +19,10 @@ async function cypressExecutor(options, context) {
+                 ...options,
+                 portLockFilePath: devServerValues.portLockFilePath,
+             });
+-            if (!options.watch)
++            if (!options.watch) {
++                await devServerValues.exit?.();
+                 break;
++            }
+         }
+         catch (e) {
+             devkit_1.logger.error(e.message);
+diff --git a/node_modules/@nx/cypress/src/utils/start-dev-server.js b/node_modules/@nx/cypress/src/utils/start-dev-server.js
+index 78194e2..d8663c2 100644
+--- a/node_modules/@nx/cypress/src/utils/start-dev-server.js
++++ b/node_modules/@nx/cypress/src/utils/start-dev-server.js
+@@ -47,6 +47,7 @@ If the port is in use, try using a different port value or passing --port='cypre
+         yield {
+             baseUrl: opts.baseUrl || output.baseUrl || output.info?.baseUrl,
+             portLockFilePath: overrides.port && (0, path_1.join)(__dirname, `${overrides.port}.txt`),
++            exit: output.exit,
+         };
+     }
+ }

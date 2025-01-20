@@ -1,0 +1,46 @@
+diff --git a/node_modules/@nx/js/src/executors/node/node.impl.js b/node_modules/@nx/js/src/executors/node/node.impl.js
+index 5614256..4cb72a2 100644
+--- a/node_modules/@nx/js/src/executors/node/node.impl.js
++++ b/node_modules/@nx/js/src/executors/node/node.impl.js
+@@ -16,9 +16,25 @@ const get_main_file_dir_1 = require("../../utils/get-main-file-dir");
+ const utils_1 = require("nx/src/tasks-runner/utils");
+ function debounce(fn, wait) {
+     let timeoutId;
++    let pendingPromise = null;
+     return () => {
+         clearTimeout(timeoutId);
+-        timeoutId = setTimeout(fn, wait);
++        if (!pendingPromise) {
++            pendingPromise = new Promise((resolve, reject) => {
++                timeoutId = setTimeout(() => {
++                    fn()
++                        .then((result) => {
++                        pendingPromise = null;
++                        resolve(result);
++                    })
++                        .catch((error) => {
++                        pendingPromise = null;
++                        reject(error);
++                    });
++                }, wait);
++            });
++        }
++        return pendingPromise;
+     };
+ }
+ async function* nodeExecutor(options, context) {
+@@ -123,7 +139,13 @@ async function* nodeExecutor(options, context) {
+                             }
+                             resolve();
+                         });
+-                        next({ success: true, options: buildOptions });
++                        next({
++                            success: true,
++                            options: buildOptions,
++                            exit: async () => {
++                                await stopAllTasks();
++                            },
++                        });
+                     });
+                 },
+                 stop: async (signal = 'SIGTERM') => {

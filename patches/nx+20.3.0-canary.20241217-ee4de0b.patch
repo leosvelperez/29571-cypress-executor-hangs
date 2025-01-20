@@ -1,0 +1,39 @@
+diff --git a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
+index aa01b52..c29d9d9 100644
+--- a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
++++ b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
+@@ -224,10 +224,15 @@ class ForkedProcessTaskRunner {
+                 let stdoutHasEnded = false;
+                 let stderrHasEnded = false;
+                 let processHasExited = false;
+-                const handleProcessEnd = () => {
++                let handleProcessEndTimeout = null;
++                const handleProcessEnd = (force = false) => {
+                     // ensure process has exited and both stdout and stderr have ended before we pass along the logs
+                     // if we only wait for the process to exit, we might miss some logs as stdout and stderr might still be streaming
+-                    if (stdoutHasEnded && stderrHasEnded && processHasExited) {
++                    if ((stdoutHasEnded && stderrHasEnded && processHasExited) || force) {
++                        if (handleProcessEndTimeout) {
++                            clearTimeout(handleProcessEndTimeout);
++                            handleProcessEndTimeout = null;
++                        }
+                         // we didn't print any output as we were running the command
+                         // print all the collected output|
+                         const terminalOutput = outWithErr.join('');
+@@ -238,6 +243,16 @@ class ForkedProcessTaskRunner {
+                         this.writeTerminalOutput(temporaryOutputPath, terminalOutput);
+                         res({ code, terminalOutput });
+                     }
++                    else if (processHasExited) {
++                        // if the process has exited, but we are still waiting for stdout
++                        // and/or stderr to end, we await them to end up to a maximum of
++                        // 100ms to prevent hanging tasks
++                        if (!handleProcessEndTimeout) {
++                            handleProcessEndTimeout = setTimeout(() => {
++                                handleProcessEnd(true);
++                            }, 100);
++                        }
++                    }
+                 };
+                 p.stdout.on('data', (chunk) => {
+                     outWithErr.push(chunk.toString());
