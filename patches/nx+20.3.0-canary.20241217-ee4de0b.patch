@@ -1,14 +1,26 @@
 diff --git a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
-index aa01b52..c29d9d9 100644
+index aa01b52..19c4534 100644
 --- a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
 +++ b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
-@@ -224,10 +224,15 @@ class ForkedProcessTaskRunner {
+@@ -224,10 +224,27 @@ class ForkedProcessTaskRunner {
                  let stdoutHasEnded = false;
                  let stderrHasEnded = false;
                  let processHasExited = false;
 -                const handleProcessEnd = () => {
 +                let handleProcessEndTimeout = null;
++                const rescheduleForcedHandleProcessEnd = () => {
++                    console.log('rescheduleForcedHandleProcessEnd');
++                    if (handleProcessEndTimeout) {
++                        clearTimeout(handleProcessEndTimeout);
++                        handleProcessEndTimeout = null;
++                    }
++                    handleProcessEndTimeout = setTimeout(() => {
++                        console.log('force handleProcessEnd');
++                        handleProcessEnd(true);
++                    }, 100);
++                };
 +                const handleProcessEnd = (force = false) => {
++                    console.log('handleProcessEnd', stdoutHasEnded, stderrHasEnded, processHasExited);
                      // ensure process has exited and both stdout and stderr have ended before we pass along the logs
                      // if we only wait for the process to exit, we might miss some logs as stdout and stderr might still be streaming
 -                    if (stdoutHasEnded && stderrHasEnded && processHasExited) {
@@ -20,7 +32,7 @@ index aa01b52..c29d9d9 100644
                          // we didn't print any output as we were running the command
                          // print all the collected output|
                          const terminalOutput = outWithErr.join('');
-@@ -238,6 +243,16 @@ class ForkedProcessTaskRunner {
+@@ -238,22 +255,44 @@ class ForkedProcessTaskRunner {
                          this.writeTerminalOutput(temporaryOutputPath, terminalOutput);
                          res({ code, terminalOutput });
                      }
@@ -29,11 +41,39 @@ index aa01b52..c29d9d9 100644
 +                        // and/or stderr to end, we await them to end up to a maximum of
 +                        // 100ms to prevent hanging tasks
 +                        if (!handleProcessEndTimeout) {
-+                            handleProcessEndTimeout = setTimeout(() => {
-+                                handleProcessEnd(true);
-+                            }, 100);
++                            console.log('schedule forced handleProcessEnd for the first time');
++                            rescheduleForcedHandleProcessEnd();
 +                        }
 +                    }
                  };
                  p.stdout.on('data', (chunk) => {
++                    console.log('received stdout data');
                      outWithErr.push(chunk.toString());
++                    if (processHasExited) {
++                        console.log('received stdout data and process has exited, reschedule forced handleProcessEnd');
++                        rescheduleForcedHandleProcessEnd();
++                    }
+                 });
+                 p.stdout.on('end', () => {
++                    console.log('stdout ended');
+                     stdoutHasEnded = true;
+                     handleProcessEnd();
+                 });
+                 p.stderr.on('data', (chunk) => {
++                    console.log('received stderr data');
+                     outWithErr.push(chunk.toString());
++                    if (processHasExited) {
++                        console.log('received stderr data and process has exited, reschedule forced handleProcessEnd');
++                        rescheduleForcedHandleProcessEnd();
++                    }
+                 });
+                 p.stderr.on('end', () => {
++                    console.log('stderr ended');
+                     stderrHasEnded = true;
+                     handleProcessEnd();
+                 });
+                 p.on('exit', (code, signal) => {
++                    console.log('process exited');
+                     this.processes.delete(p);
+                     if (code === null)
+                         code = (0, exit_codes_1.signalToCode)(signal);
