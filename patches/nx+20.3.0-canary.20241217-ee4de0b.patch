@@ -1,5 +1,5 @@
 diff --git a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
-index aa01b52..19c4534 100644
+index aa01b52..19b369d 100644
 --- a/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
 +++ b/node_modules/nx/src/tasks-runner/forked-process-task-runner.js
 @@ -224,10 +224,27 @@ class ForkedProcessTaskRunner {
@@ -8,27 +8,27 @@ index aa01b52..19c4534 100644
                  let processHasExited = false;
 -                const handleProcessEnd = () => {
 +                let handleProcessEndTimeout = null;
-+                const rescheduleForcedHandleProcessEnd = () => {
-+                    console.log('rescheduleForcedHandleProcessEnd');
-+                    if (handleProcessEndTimeout) {
-+                        clearTimeout(handleProcessEndTimeout);
-+                        handleProcessEndTimeout = null;
-+                    }
-+                    handleProcessEndTimeout = setTimeout(() => {
-+                        console.log('force handleProcessEnd');
-+                        handleProcessEnd(true);
-+                    }, 100);
-+                };
++                // const rescheduleForcedHandleProcessEnd = () => {
++                //     console.log('rescheduleForcedHandleProcessEnd');
++                //     if (handleProcessEndTimeout) {
++                //         clearTimeout(handleProcessEndTimeout);
++                //         handleProcessEndTimeout = null;
++                //     }
++                //     handleProcessEndTimeout = setTimeout(() => {
++                //         console.log('force handleProcessEnd');
++                //         handleProcessEnd(true);
++                //     }, 100);
++                // };
 +                const handleProcessEnd = (force = false) => {
 +                    console.log('handleProcessEnd', stdoutHasEnded, stderrHasEnded, processHasExited);
                      // ensure process has exited and both stdout and stderr have ended before we pass along the logs
                      // if we only wait for the process to exit, we might miss some logs as stdout and stderr might still be streaming
 -                    if (stdoutHasEnded && stderrHasEnded && processHasExited) {
 +                    if ((stdoutHasEnded && stderrHasEnded && processHasExited) || force) {
-+                        if (handleProcessEndTimeout) {
-+                            clearTimeout(handleProcessEndTimeout);
-+                            handleProcessEndTimeout = null;
-+                        }
++                        // if (handleProcessEndTimeout) {
++                        //     clearTimeout(handleProcessEndTimeout);
++                        //     handleProcessEndTimeout = null;
++                        // }
                          // we didn't print any output as we were running the command
                          // print all the collected output|
                          const terminalOutput = outWithErr.join('');
@@ -36,23 +36,23 @@ index aa01b52..19c4534 100644
                          this.writeTerminalOutput(temporaryOutputPath, terminalOutput);
                          res({ code, terminalOutput });
                      }
-+                    else if (processHasExited) {
-+                        // if the process has exited, but we are still waiting for stdout
-+                        // and/or stderr to end, we await them to end up to a maximum of
-+                        // 100ms to prevent hanging tasks
-+                        if (!handleProcessEndTimeout) {
-+                            console.log('schedule forced handleProcessEnd for the first time');
-+                            rescheduleForcedHandleProcessEnd();
-+                        }
-+                    }
++                    // else if (processHasExited) {
++                    //     // if the process has exited, but we are still waiting for stdout
++                    //     // and/or stderr to end, we await them to end up to a maximum of
++                    //     // 100ms to prevent hanging tasks
++                    //     if (!handleProcessEndTimeout) {
++                    //         console.log('schedule forced handleProcessEnd for the first time');
++                    //         rescheduleForcedHandleProcessEnd();
++                    //     }
++                    // }
                  };
                  p.stdout.on('data', (chunk) => {
 +                    console.log('received stdout data');
                      outWithErr.push(chunk.toString());
-+                    if (processHasExited) {
-+                        console.log('received stdout data and process has exited, reschedule forced handleProcessEnd');
-+                        rescheduleForcedHandleProcessEnd();
-+                    }
++                    // if (processHasExited) {
++                    //     console.log('received stdout data and process has exited, reschedule forced handleProcessEnd');
++                    //     rescheduleForcedHandleProcessEnd();
++                    // }
                  });
                  p.stdout.on('end', () => {
 +                    console.log('stdout ended');
@@ -62,10 +62,10 @@ index aa01b52..19c4534 100644
                  p.stderr.on('data', (chunk) => {
 +                    console.log('received stderr data');
                      outWithErr.push(chunk.toString());
-+                    if (processHasExited) {
-+                        console.log('received stderr data and process has exited, reschedule forced handleProcessEnd');
-+                        rescheduleForcedHandleProcessEnd();
-+                    }
++                    // if (processHasExited) {
++                    //     console.log('received stderr data and process has exited, reschedule forced handleProcessEnd');
++                    //     rescheduleForcedHandleProcessEnd();
++                    // }
                  });
                  p.stderr.on('end', () => {
 +                    console.log('stderr ended');

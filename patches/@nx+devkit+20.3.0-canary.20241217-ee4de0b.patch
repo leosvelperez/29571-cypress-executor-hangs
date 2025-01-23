@@ -1,0 +1,37 @@
+diff --git a/node_modules/@nx/devkit/src/utils/async-iterable/create-async-iterable.js b/node_modules/@nx/devkit/src/utils/async-iterable/create-async-iterable.js
+index 07ddaa5..85343c7 100644
+--- a/node_modules/@nx/devkit/src/utils/async-iterable/create-async-iterable.js
++++ b/node_modules/@nx/devkit/src/utils/async-iterable/create-async-iterable.js
+@@ -4,6 +4,7 @@ exports.createAsyncIterable = createAsyncIterable;
+ function createAsyncIterable(listener) {
+     let done = false;
+     let error = null;
++    let cleanup;
+     const pushQueue = [];
+     const pullQueue = [];
+     return {
+@@ -33,6 +34,9 @@ function createAsyncIterable(listener) {
+                     }
+                     done = true;
+                 },
++                cleanup: (cb) => {
++                    cleanup = cb;
++                },
+             });
+             return {
+                 next() {
+@@ -51,6 +55,14 @@ function createAsyncIterable(listener) {
+                         }
+                     });
+                 },
++                async return() {
++                  console.log('running cleanup in the createAsyncIterable');
++                    if (cleanup) {
++                        console.log('there is a registered cleanup function, running it');
++                        await cleanup();
++                    }
++                    return { value: undefined, done: true };
++                },
+             };
+         },
+     };
